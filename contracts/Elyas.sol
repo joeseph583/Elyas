@@ -4,7 +4,6 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "hardhat/console.sol";
 
@@ -27,7 +26,6 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
     uint32 callbackGasLimit = 200000;
     // Set in constructor
     uint64 subscriptionId;
-    AggregatorV3Interface ethUsdPriceFeed;
     VRFCoordinatorV2Interface COORDINATOR;
     bytes32 keyhash;
 
@@ -42,7 +40,6 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
 
     constructor(
         uint64 _subscriptionId,
-        address _priceFeedAddress,
         address _vrfCoordinator,
         bytes32 _keyhash,
         // add:
@@ -50,7 +47,6 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
         uint256 devFee
     ) VRFConsumerBaseV2(_vrfCoordinator) payable {
         subscriptionId = _subscriptionId;
-        ethUsdPriceFeed = AggregatorV3Interface(_priceFeedAddress);
         COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
         keyhash = _keyhash;
         // add:
