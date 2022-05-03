@@ -1,0 +1,36 @@
+{
+  "chainId": {
+    "4": {
+      "subscriptionId": 767,
+      "priceFeedAddress": "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e",
+      "vrfCoordinator": "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+      "link": "0x01BE23585060835E02B77ef475b0Cc51aA1e0709",
+      "keyHash": "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+      "lotteryAddress": "0x197B6aA305EE2868D39530F94505987debaa9055"
+    },
+    "97": {
+      "subscriptionId": 105,
+      "priceFeedAddress": "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526",
+      "vrfCoordinator": "0x6A2AAd07396B36Fe02a22b33cf443582f682c82f",
+      "link": "0x84b9B910527Ad5C03A9Ca831909E21e236EA7b06",
+      "keyHash": "0xd4bb89654db74673a187bd804519e65e3f71a52bc55f11da7601a13dcf505314",
+      "lotteryAddress": "0xa98630e1C5591C7A16934E80ec025A5a9eaF98e8"
+    },
+    "56": {
+      "subscriptionId": 18,
+      "priceFeedAddress": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE",
+      "vrfCoordinator": "0xc587d9053cd1118f25F645F9E08BB98c9712A4EE",
+      "link": "0x404460c6a5ede2d891e8297795264fde62adbb75",
+      "keyHash": "0x17cd473250a9a479dc7f234c64332ed4bc8af9e8ded7556aa6e66d83da49f470",
+      "lotteryAddress": "0x900A3a179483aD5F18B810AABC0DCfE61719aCAa"
+    },
+    "31337": {
+      "subscriptionId": 0,
+      "priceFeedAddress": "0x0000000000000000000000000000000000000000",
+      "vrfCoordinator": "0x0000000000000000000000000000000000000000",
+      "link": "0x0000000000000000000000000000000000000000",
+      "keyHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "lotteryAddress": "0x0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}
