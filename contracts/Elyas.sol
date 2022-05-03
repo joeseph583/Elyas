@@ -12,23 +12,14 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
 
     using SafeMath for uint256;
 
-    enum LOTTERY_STATE {
-        OPEN,
-        CLOSED,
-        CALCULATING_WINNER
-    }
-    LOTTERY_STATE public state;
-
-    //Repurposing above============================================
-
     mapping(address => bool) s_drawingStatus;
     mapping(address => uint256) public s_consecutiveLosses;
     mapping(address => uint256) public s_rupeesBalance;
     mapping(address => bool) public s_isWinner;
     mapping(address => uint256) public s_initialDeposit;
     mapping(address => uint256) public s_claimedWinnings;
-
-    //=============================================================
+    mapping(uint256 => address) public s_requester;
+    mapping(address => uint256) public s_lastDraw;
 
     // - Constants (THESE STAY)
     uint32 numWords = 1;
@@ -40,46 +31,33 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
     VRFCoordinatorV2Interface COORDINATOR;
     bytes32 keyhash;
 
-    address payable[] public players;
-    address payable public recentWinner;
-    // uint256[] public randomness;
-    uint256 public usdEntryFee;
-
     event RequestedRandomness(uint256 requestId);
     event FulfillRandomness(uint256 requestId);
-
-    //Repurposing above============================================
 
     uint256 public s_rupeePrice;
     uint256 public s_rupeeReserve;
     uint256 public s_contractReserve;
-    
-    // ?
+    uint256 public immutable i_devFee;
     uint256[] public randomness;
 
-    //=============================================================
-
-    // will have to insert myself in here:
     constructor(
         uint64 _subscriptionId,
         address _priceFeedAddress,
         address _vrfCoordinator,
         bytes32 _keyhash,
         // add:
-        uint256 rupeeSupply
+        uint256 rupeeSupply,
+        uint256 devFee
     ) VRFConsumerBaseV2(_vrfCoordinator) payable {
-        usdEntryFee = 50 * (10**18);
         subscriptionId = _subscriptionId;
         ethUsdPriceFeed = AggregatorV3Interface(_priceFeedAddress);
         COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
-        state = LOTTERY_STATE.CLOSED;
         keyhash = _keyhash;
         // add:
         s_rupeeReserve = rupeeSupply;
         s_contractReserve = address(this).balance;
+        i_devFee = devFee;
     }
-
-    // ELYAS FUNCTIONS ==================================================
 
     function quote(uint256 inputAmount, bool buy) public view returns (uint256) {
         if (buy == true) {
@@ -119,6 +97,18 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
         s_rupeesBalance[msg.sender] = 0;
 
         require(_winnings < address(this).balance, "winnings exceed contract balance");
+        // implement 3x max here:
+        uint256 _maxPayout = calculateWinnings();
+
+        if (_winnings > _maxPayout) {
+            // I suppose here is the best time to send out the divvied up excess winnings
+            console.log("WINNINGS MORE THAN 3X LIMIT. CURRENTLY %s", _winnings);
+            uint256 _excessWinnings = _winnings - _maxPayout;
+            console.log("EXCESS WINNINGS: %s", _excessWinnings);
+            _winnings = _maxPayout;
+            console.log("NEW WINNINGS: %s", _winnings);
+            // pay out the calculated excess deductions
+        }
 
         address payable _winner = payable(msg.sender);
         (bool success, ) = _winner.call{ value: _winnings }("");
@@ -127,6 +117,18 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
         }
         s_rupeeReserve = s_rupeeReserve + _rupeesSold;
         s_contractReserve = s_contractReserve - _winnings;
+    }
+
+    function calculateWinnings() internal view returns (uint256) {
+        // Here we calculate the payout as well as implement the 300% ceiling
+        // We will get the initial deposit and limit to 3x of that
+        uint256 _initial = s_initialDeposit[msg.sender];
+        uint256 _maxPayout = _initial.mul(3);
+
+        console.log("INITIAL INVESTMENT IN AVAX: %s", _initial);
+        console.log("MAX PAYOUT (3X): %s", _maxPayout);
+
+        return _maxPayout;
     }
 
     function claimLoserPrize() external payable {
@@ -140,47 +142,20 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
         payable (msg.sender).transfer(prize);
     }
 
-    function drawing() external payable{
-        // requires balance to be greater than 0
-        //require(s_rupeesBalance[msg.sender] > 0);
-        // requires a payment of 0.01 AVAX to draw
-        console.log("Rupees balance: %s", s_rupeesBalance[msg.sender]);
-        require(msg.value == 10000000000000000 && s_rupeesBalance[msg.sender] > 0, "message value incorrect or zero balance");
+    // VRF IMPLEMENTATION ============================================================
+
+    // drawing will be the "requestRandomWords" function. "fulfillRandomWords" (pretty much the existing one) will be used to get the result and share with user and update counters / isWinner status
+
+    function draw() public payable{
+        // requires balance to be greater than 0 / drawing state to be false / payment of 0.01 native token / requires consecutive losses to be less than 5
+
+        // in addition, current blocktimestamp minus s_lastDraw needs to be over the drawCooldown
+
+        // sets drawing status to true 
+        require(msg.value == 10000000000000000 && s_rupeesBalance[msg.sender] > 0 && s_drawingStatus[msg.sender] == false && s_consecutiveLosses[msg.sender] < 5, "message value incorrect / zero balance / drawing currently in progress / consecutive losses past threshold");
+
+        s_drawingStatus[msg.sender] == true;
         // generates random number
-        // for now assume that they win
-        s_isWinner[msg.sender] = true;
-    }
-
-    // ELYAS FUNCTIONS ==================================================
-
-    function enter() public payable {
-        require(state == LOTTERY_STATE.OPEN);
-        require(msg.value >= getEntranceFee(), "Not enough ETH!");
-        players.push(payable(msg.sender));
-    }
-
-    function getPriceFeed() public view returns (uint256) {
-        return _getPriceFeed();
-    }
-
-    function _getPriceFeed() internal view returns (uint256) {
-        (, int256 price, , , ) = ethUsdPriceFeed.latestRoundData();
-        return uint256(price) * 10**10; // 18 decimals
-    }
-
-    function getEntranceFee() public view returns (uint256) {
-        uint256 price = _getPriceFeed();
-        uint256 costToEnter = (usdEntryFee * 10**18) / price;
-        return costToEnter;
-    }
-
-    function startLottery() public onlyOwner {
-        require(state == LOTTERY_STATE.CLOSED, "Closed!");
-        state = LOTTERY_STATE.OPEN;
-    }
-
-    function endLottery() public onlyOwner {
-        state = LOTTERY_STATE.CALCULATING_WINNER;
         uint256 requestId = COORDINATOR.requestRandomWords(
             keyhash,
             subscriptionId,
@@ -188,6 +163,10 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
             callbackGasLimit,
             numWords
         );
+
+        // map requestId to requester
+        s_requester[requestId] = msg.sender;
+
         emit RequestedRandomness(requestId);
     }
 
@@ -195,28 +174,31 @@ contract Elyas is VRFConsumerBaseV2, Ownable {
         uint256 _requestId,
         uint256[] memory _randomness
     ) internal override {
-        // - state can be adjusted for a particular user entering the drawing
-        require(state == LOTTERY_STATE.CALCULATING_WINNER);
+
+        address account = s_requester[_requestId];
+
         uint256 rand = _randomness[0];
         require(rand > 0, "RNG failed!");
-        // - players.length can just be 7-10 depending on how hard it should be to win and be able to withdraw
-        uint256 indexOfWinner = rand % players.length;
-        // - if the person wins, set isWinner to true
-        // - else, increment the counter by 1
-        recentWinner = players[indexOfWinner];
-        recentWinner.transfer(address(this).balance);
 
-        // Reset
-        players = new address payable[](0);
-        // - change state to be ready to draw again
+        uint256 _result = rand % 7;
+
+        if (_result == 7) {
+            // set isWinner to true for the requestor
+            console.log("WE HAVE A WINNER!!");
+            s_isWinner[account] = true;
+        } else {
+            //increment loser counter by one
+            console.log("WE HAVE A LOSER!!");
+            s_consecutiveLosses[account] += 1;
+        }
+
         // - set lastDraw (mapping to user) to block timestamp
-        state = LOTTERY_STATE.CLOSED;
-        randomness = _randomness;
-        emit FulfillRandomness(_requestId);
-    }
 
-    function getPlayersCount() public view returns (uint256 count) {
-        return players.length;
+        randomness = _randomness;
+        s_isWinner[account] = true;
+        s_drawingStatus[account] == false;
+
+        emit FulfillRandomness(_requestId);
     }
 
     // getLosersPool

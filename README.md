@@ -73,7 +73,15 @@ npx hardhat help
         - NFT collection which earns rewards (drains TVL overtime to avoid untouchable funds)
 
 - Work on:
-    - Chainlink VRF
-    - Loser's increment
-      - And loser's pool
-    - Seed phase of contract
+    - [x] Chainlink VRF
+    - [] Loser's increment
+      - [] And loser's pool
+    - [] Seed phase of contract
+    - [] lastDraw
+        - this is set in the fulfillRandomness function
+        - and is checked in the draw function
+        - set var for drawCooldown (set for an hour?)
+
+- Completed tasks:
+    - Incorporate max winnings
+        - This is actually not done, since you want to direct some of those excess earnings elsewhere
